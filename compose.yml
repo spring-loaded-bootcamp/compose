@@ -1,12 +1,14 @@
 services:
-  configserver:
+  config-server:
     image: configserver:0.0.1-SNAPSHOT
     ports:
       - "8888:8888"
   gateway:
+    depends_on:
+      - config-server
+    environment:
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
     image: gateway:0.0.1-SNAPSHOT
-    ports:
-      - "8080:8080"
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -19,7 +21,7 @@ services:
     image: ngrok/ngrok:latest
     command: http gateway:8080
     environment:
-      - NGROK_AUTHTOKEN=YOUR_AUTH_TOKEN
+      - NGROK_AUTHTOKEN=${NGROK_AUTH_TOKEN}
     ports:
       - "4040:4040"
     restart: unless-stopped
@@ -48,9 +50,9 @@ services:
     image: simple:0.0.1-SNAPSHOT
     restart: unless-stopped
     depends_on:
-      - configserver
+      - config-server
     environment:
-      - SPRING_CONFIG_IMPORT=configserver:http://configserver:8888
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
   # Tempo runs as user 10001, and docker compose creates the volume as root.
   # As such, we need to chown the volume in order for Tempo to start correctly.
   tempo-init:

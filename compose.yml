@@ -19,7 +19,7 @@ services:
       - "3100:3100"
   ngrok:
     image: ngrok/ngrok:latest
-    command: http gateway:8080
+    command: http gateway:8080 --url=dashaun.ngrok.io
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTH_TOKEN}
     ports:

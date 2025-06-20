@@ -27,7 +27,7 @@ services:
     image: 'rabbitmq:latest'
     environment:
       - 'RABBITMQ_DEFAULT_PASS=secret'
-      - 'RABBITMQ_DEFAULT_USER=myuser'
+      - 'RABBITMQ_DEFAULT_USER=user'
     ports:
       - '5672:5672'
   redis:
@@ -43,6 +43,8 @@ services:
   simple:
     image: simple:0.0.1-SNAPSHOT
     restart: unless-stopped
+    depends_on:
+      - configserver
     environment:
       - SPRING_CONFIG_IMPORT=configserver:http://configserver:8888
   # Tempo runs as user 10001, and docker compose creates the volume as root.

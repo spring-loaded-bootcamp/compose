@@ -3,6 +3,14 @@ services:
     image: configserver:0.0.1-SNAPSHOT
     ports:
       - "8888:8888"
+  discovery:
+    image: discovery:0.0.1-SNAPSHOT
+    depends_on:
+      - config-server
+    environment:
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
+    ports:
+      - "8761:8761"
   gateway:
     depends_on:
       - config-server

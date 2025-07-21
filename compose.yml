@@ -1,6 +1,18 @@
 services:
+  admin:
+    image: admin:0.0.1-SNAPSHOT
+    depends_on:
+      - config-server
+    environment:
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
+    labels:
+      - "logging=promtail"
+    ports:
+      - "8081:8080"
   config-server:
     image: configserver:0.0.1-SNAPSHOT
+    labels:
+      - "logging=promtail"
     ports:
       - "8888:8888"
   discovery:
@@ -9,6 +21,8 @@ services:
       - config-server
     environment:
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
+    labels:
+      - "logging=promtail"
     ports:
       - "8761:8761"
   gateway:
@@ -17,35 +31,85 @@ services:
     environment:
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
     image: gateway:0.0.1-SNAPSHOT
+    labels:
+      - "logging=promtail"
+    ports:
+      - "8080:8080"
   grafana:
+    depends_on:
+      - loki
+      - prometheus
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
     image: grafana/grafana:latest
+    labels:
+      - "logging=promtail"
     ports:
       - "3000:3000"
+    volumes:
+      - ./.docker/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./.docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./.docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./.docker/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
   loki:
+    command: ['-config.file=/etc/loki/local-config.yaml']
     image: grafana/loki:latest
     ports:
       - "3100:3100"
   ngrok:
-    image: ngrok/ngrok:latest
     command: http gateway:8080 --url=dashaun.ngrok.io
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTH_TOKEN}
+    image: ngrok/ngrok:latest
+    labels:
+      - "logging=promtail"
     ports:
       - "4040:4040"
     restart: unless-stopped
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    labels:
+      - "logging=promtail"
+    ports:
+      - "3001:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open-webui:/app/backend/data
+    restart: always
   prometheus:
     image: prom/prometheus:latest
+    labels:
+      - "logging=promtail"
     ports:
       - "9090:9090"
+  promtail:
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./.docker/promtail/config.yml:/etc/promtail/config.yml:ro
+
   rabbitmq:
     image: 'rabbitmq:latest'
     environment:
       - 'RABBITMQ_DEFAULT_PASS=secret'
       - 'RABBITMQ_DEFAULT_USER=user'
+    labels:
+      - "logging=promtail"
     ports:
       - '5672:5672'
   redis:
     image: redis:latest
+    labels:
+      - "logging=promtail"
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -59,31 +123,35 @@ services:
     restart: unless-stopped
     depends_on:
       - config-server
+    labels:
+      - "logging=promtail"
     environment:
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
   # Tempo runs as user 10001, and docker compose creates the volume as root.
   # As such, we need to chown the volume in order for Tempo to start correctly.
-  tempo-init:
-    image: &tempoImage grafana/tempo:latest
-    user: root
-    entrypoint:
-      - "chown"
-      - "10001:10001"
-      - "/var/tempo"
-    volumes:
-      - ./.docker/tempo:/var/tempo
-  tempo:
-    image: *tempoImage
-    command: [ "-config.file=/etc/tempo.yaml" ]
-    volumes:
-      - ./.docker/tempo.yaml:/etc/tempo.yaml
-      - ./.docker/tempo-data:/var/tempo
-    ports:
-      - "14268:14268"  # jaeger ingest
-      - "3200:3200"   # tempo
-      - "9095:9095" # tempo grpc
-      - "4317:4317"  # otlp grpc
-      - "4318:4318"  # otlp http
-      - "9411:9411"   # zipkin
-    depends_on:
-      - tempo-init
+#  tempo-init:
+#    image: &tempoImage grafana/tempo:latest
+#    user: root
+#    entrypoint:
+#      - "chown"
+#      - "10001:10001"
+#      - "/var/tempo"
+#    volumes:
+#      - ./.docker/tempo:/var/tempo
+#  tempo:
+#    image: *tempoImage
+#    command: [ "-config.file=/etc/tempo.yaml" ]
+#    volumes:
+#      - ./.docker/tempo.yaml:/etc/tempo.yaml
+#      - ./.docker/tempo-data:/var/tempo
+#    ports:
+#      - "14268:14268"  # jaeger ingest
+#      - "3200:3200"   # tempo
+#      - "9095:9095" # tempo grpc
+#      - "4317:4317"  # otlp grpc
+#      - "4318:4318"  # otlp http
+#      - "9411:9411"   # zipkin
+#    depends_on:
+#      - tempo-init
+volumes:
+  open-webui:

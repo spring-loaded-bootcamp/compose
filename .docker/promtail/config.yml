@@ -21,19 +21,20 @@ scrape_configs:
           expressions:
             output: log
             stream: stream
-            attrs:
-      - json:
-          source: attrs
-          expressions:
-            tag: attrs.tag
+            attrs: attrs
       - regex:
-          source: tag
-          expression: '^(?P<container_name>(?:[^|]*))'
-      - timestamp:
-          source: time
-          format: RFC3339Nano
-      - labels:
-          stream:
-          container_name:
-      - output:
+          expression: '^/var/lib/docker/containers/(?P<container_id>[^/]+)/[^-]+-json\.log$'
+          source: filename
+      - docker:
+          host: unix:///var/run/docker.sock
+          refresh_interval: 5s
+          match_source_labels: [ container_id ]
+      - regex:
+          expression: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\s+\w+\s+\d+\s+---\s+\[(?P<app_name>[^\]]+)\]'
           source: output
+      - labels:
+          container_id:
+          container_name:
+          image_name:
+          stream:
+          app_name:

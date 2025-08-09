@@ -3,7 +3,10 @@ services:
     image: admin:0.0.1-SNAPSHOT
     depends_on:
       - config-server
+      - discovery
     environment:
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=true
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery:8761/eureka/
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
     labels:
       - "logging=promtail"
@@ -20,6 +23,8 @@ services:
     depends_on:
       - config-server
     environment:
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=true
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery:8761/eureka/
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
     labels:
       - "logging=promtail"
@@ -28,13 +33,17 @@ services:
   gateway:
     depends_on:
       - config-server
+      - discovery
     environment:
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=true
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery:8761/eureka/
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
     image: gateway:0.0.1-SNAPSHOT
     labels:
       - "logging=promtail"
     ports:
       - "8080:8080"
+    restart: unless-stopped
   grafana:
     depends_on:
       - loki
@@ -123,9 +132,12 @@ services:
     restart: unless-stopped
     depends_on:
       - config-server
+      - discovery
     labels:
       - "logging=promtail"
     environment:
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=true
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery:8761/eureka/
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
   # Tempo runs as user 10001, and docker compose creates the volume as root.
   # As such, we need to chown the volume in order for Tempo to start correctly.
